@@ -5,6 +5,7 @@
   "defaultThinkingLevel": "medium",
   "quietStartup": true,
   "collapseChangelog": true,
+  "enableSkillCommands": true,
   "packages": [
     "npm:pi-mcp-adapter",
     "npm:@aliou/pi-guardrails"
