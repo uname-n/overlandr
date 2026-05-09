@@ -1,0 +1,10 @@
+target/
+osm/
+shape/
+*.bin
+*.pbf
+*.shp
+*.dbf
+*.shx
+*.gpx
+.git/

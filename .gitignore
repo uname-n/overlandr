@@ -1,0 +1,10 @@
+/target
+/bin
+/osm
+/shape
+*.bin
+/*.gpx
+*.osm*
+.worktrees
+.DS_Store
+.pit

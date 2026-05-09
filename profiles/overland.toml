@@ -1,0 +1,70 @@
+[base]
+motorway     = 12.0   # never, basically
+trunk        = 6.0
+primary      = 8.0
+secondary    = 4.0
+tertiary     = 2.0
+unclassified = 1.0
+residential  = 5.0
+service      = 8.0
+track        = 0.6    # the good stuff
+path         = 5.0    # only if no alternative
+
+[surface]
+asphalt     = 1.5
+paved       = 1.5
+concrete    = 1.5
+compacted   = 0.9
+gravel      = 0.7
+fine_gravel = 0.75
+dirt        = 0.65
+ground      = 0.7
+sand        = 1.1
+grass       = 1.0
+mud         = 1.4
+unknown     = 1.0
+
+[tracktype]
+grade1 = 1.0
+grade2 = 0.85
+grade3 = 0.75
+grade4 = 0.8
+grade5 = 1.1
+
+[smoothness]
+excellent     = 1.0
+good          = 1.0
+intermediate  = 1.05
+bad           = 1.2
+very_bad      = 1.5
+horrible      = 2.0
+very_horrible = 3.0
+impassable    = 9999.0
+
+[vehicle.stock-suv]
+fourwd_only_penalty = 9999.0
+min_smoothness      = "bad"
+
+[vehicle.high-clearance]
+fourwd_only_penalty = 4.0
+min_smoothness      = "very_bad"
+
+[vehicle.4x4]
+fourwd_only_penalty = 1.0
+min_smoothness      = "horrible"
+
+[vehicle.dirtbike]
+fourwd_only_penalty = 1.0
+min_smoothness      = "very_horrible"
+narrow_path_bonus   = 0.5
+
+# ---------------------------------------------------------------------------
+# Routing algorithm tuning
+# ---------------------------------------------------------------------------
+# These values can be overridden per-profile without recompiling.
+
+[routing]
+lambda      = 1.5    # penalty growth factor for k-alternatives
+fuel_buffer = 0.20   # fraction of tank range kept as reserve (20 %)
+grid_step   = 0.001  # conflation grid cell size in degrees (~111 m)
+ford_penalty = 3.0   # cost multiplier for ford (water crossing) edges
