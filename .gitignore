@@ -8,3 +8,4 @@
 .worktrees
 .DS_Store
 .pit
+/.pi/npm

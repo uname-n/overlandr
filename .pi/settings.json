@@ -1,0 +1,13 @@
+{
+  "lastChangelogVersion": "0.69.0",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.4",
+  "defaultThinkingLevel": "medium",
+  "quietStartup": true,
+  "collapseChangelog": true,
+  "packages": [
+    "npm:pi-mcp-adapter",
+    "npm:@aliou/pi-guardrails"
+  ],
+  "enableInstallTelemetry": false
+}

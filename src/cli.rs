@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "overlandr", version = "0.1.0")]
+#[command(name = "overlandr", version = env!("CARGO_PKG_VERSION"))]
 pub struct Cli {
     #[arg(long, env = "GRAPH_PATH", default_value = "./graph.bin")]
     pub graph: std::path::PathBuf,

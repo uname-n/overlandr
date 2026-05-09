@@ -4,6 +4,7 @@ REGISTRY = ghcr.io/uname-n/overlandr
 PACKAGE  = $(notdir $(REGISTRY))
 STATES   = oregon idaho montana
 SOURCE   = https://github.com/uname-n/overlandr
+VERSION  = $(shell awk -F '"' '/^version = / { print $$2; exit }' Cargo.toml)
 
 .PHONY: all oregon idaho montana build install clean publish prune $(addprefix publish-,$(STATES))
 
@@ -41,6 +42,7 @@ $(addprefix publish-,$(STATES)): publish-%: bin/%.bin
 		--annotation "index:org.opencontainers.image.description=Overland route planning server for $*." \
 		--push \
 		-t $(REGISTRY):$* \
+		-t $(REGISTRY):$*-$(VERSION) \
 		-f dockerfile .
 
 docker: $(addprefix docker-,$(STATES)) prune
@@ -51,7 +53,8 @@ $(addprefix docker-,$(STATES)): docker-%: bin/%.bin
 		--annotation "index:org.opencontainers.image.source=$(SOURCE)" \
 		--annotation "index:org.opencontainers.image.title=overlandr" \
 		--annotation "index:org.opencontainers.image.description=Overland route planning server for $*." \
-		-t overlandr-$* \
+		-t overlandr:$* \
+		-t overlandr:$*-$(VERSION) \
 		-f dockerfile .
 prune:
 	@gh api "/user/packages/container/$(PACKAGE)/versions" --paginate \
