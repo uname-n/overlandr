@@ -51,6 +51,8 @@ impl EdgeFlags {
     pub const SMOOTHNESS_ROUGH: EdgeFlags = EdgeFlags(0x20);
     /// Smoothness is horrible or worse — blocks high-clearance vehicles.
     pub const SMOOTHNESS_VERY_ROUGH: EdgeFlags = EdgeFlags(0x40);
+    /// Edge is a non-road trail class (`path`, `footway`, `bridleway`, `cycleway`).
+    pub const TRAIL: EdgeFlags = EdgeFlags(0x80);
 
     /// Returns `true` if `self` contains all bits set in `flag`.
     #[inline]
