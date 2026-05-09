@@ -1,13 +1,13 @@
 mod cli;
-mod osm;
-mod usfs;
 mod conflation;
-mod profile;
-mod graph;
-mod routing;
-mod gpx;
 mod geom;
+mod gpx;
+mod graph;
+mod osm;
+mod profile;
+mod routing;
 mod serve;
+mod usfs;
 
 use std::path::{Path, PathBuf};
 
@@ -26,8 +26,8 @@ use osm::filter::WayFilter;
 use osm::loader::load_ways;
 use profile::load_profile;
 use routing::alternatives::{k_alternatives, AltConfig};
-use routing::fuel::{plan_fuel_stops, FuelStop};
 use routing::dijkstra::Route;
+use routing::fuel::{plan_fuel_stops, FuelStop};
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -45,15 +45,29 @@ fn main() -> anyhow::Result<()> {
     }
 
     match cli.command {
-        Command::Build { pbf, out, profile, bbox, keep_private, no_simplify, usfs, usfs_snap } => {
-            cmd_build(pbf, out, profile, bbox, keep_private, no_simplify, usfs, usfs_snap)
-        }
-        Command::Serve { port, host } => {
-            tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()?
-                .block_on(serve::run_server(&cli.graph, &host, port))
-        }
+        Command::Build {
+            pbf,
+            out,
+            profile,
+            bbox,
+            keep_private,
+            no_simplify,
+            usfs,
+            usfs_snap,
+        } => cmd_build(
+            pbf,
+            out,
+            profile,
+            bbox,
+            keep_private,
+            no_simplify,
+            usfs,
+            usfs_snap,
+        ),
+        Command::Serve { port, host } => tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()?
+            .block_on(serve::run_server(&cli.graph, &host, port)),
         Command::Inspect => cmd_inspect(&cli.graph),
         Command::Tags { profile } => cmd_tags(profile),
     }
@@ -86,11 +100,15 @@ fn cmd_build(
 
     // Load ways from PBF.
     let filter = WayFilter::from_profile(&profile, keep_private, true, false);
-    let (mut ways, mut nodes, fuel_stations, scenic_features) = load_ways(&pbf, &filter)
-        .context("failed to read PBF")?;
+    let (mut ways, mut nodes, fuel_stations, scenic_features) =
+        load_ways(&pbf, &filter).context("failed to read PBF")?;
 
     tracing::info!(ways = ways.len(), nodes = nodes.len(), "OSM data loaded");
-    tracing::info!(fuel_stations = fuel_stations.len(), scenic_features = scenic_features.len(), "point features loaded");
+    tracing::info!(
+        fuel_stations = fuel_stations.len(),
+        scenic_features = scenic_features.len(),
+        "point features loaded"
+    );
 
     // Optionally load and merge USFS road data.
     if let Some(ref shp) = usfs_path {
@@ -104,9 +122,8 @@ fn cmd_build(
             derived_bbox = pbf_bbox(&nodes);
             Some(&derived_bbox)
         };
-        let (usfs_ways, usfs_nodes) =
-            usfs::load_usfs_roads(shp, &nodes, usfs_bbox, usfs_snap)
-                .context("failed to load USFS shapefile")?;
+        let (usfs_ways, usfs_nodes) = usfs::load_usfs_roads(shp, &nodes, usfs_bbox, usfs_snap)
+            .context("failed to load USFS shapefile")?;
         tracing::info!(
             ways = usfs_ways.len(),
             nodes = usfs_nodes.len(),
@@ -115,8 +132,13 @@ fn cmd_build(
         );
         // Drop OSM tracks whose geometry is already covered by USFS.
         ways = conflation::filter_covered_by_usfs(
-            ways, &nodes, &usfs_ways, &usfs_nodes,
-            CONFLATION_RADIUS_M, CONFLATION_MIN_COVERAGE, profile.routing.grid_step,
+            ways,
+            &nodes,
+            &usfs_ways,
+            &usfs_nodes,
+            CONFLATION_RADIUS_M,
+            CONFLATION_MIN_COVERAGE,
+            profile.routing.grid_step,
         );
         ways.extend(usfs_ways);
         nodes.extend(usfs_nodes);
@@ -132,7 +154,11 @@ fn cmd_build(
     // Optionally contract degree-2 chains.
     if !no_simplify {
         g = graph::contract::contract(g);
-        tracing::info!(nodes = g.node_count, edges = g.edge_count, "graph contracted");
+        tracing::info!(
+            nodes = g.node_count,
+            edges = g.edge_count,
+            "graph contracted"
+        );
     }
 
     // Build spatial index.
@@ -185,15 +211,27 @@ pub(crate) fn run_route(
     profile: &profile::Profile,
     params: &RouteParams,
 ) -> anyhow::Result<(Vec<Route>, Vec<Vec<FuelStop>>)> {
-    let from_node = index.nearest(params.from_lat, params.from_lon, 1000.0).map_err(|e| {
-        anyhow::anyhow!("origin snap failed ({}); move the point closer to a mapped road", e)
-    })?;
-    let to_node = index.nearest(params.to_lat, params.to_lon, 1000.0).map_err(|e| {
-        anyhow::anyhow!("destination snap failed ({}); move the point closer to a mapped road", e)
-    })?;
+    let from_node = index
+        .nearest(params.from_lat, params.from_lon, 1000.0)
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "origin snap failed ({}); move the point closer to a mapped road",
+                e
+            )
+        })?;
+    let to_node = index
+        .nearest(params.to_lat, params.to_lon, 1000.0)
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "destination snap failed ({}); move the point closer to a mapped road",
+                e
+            )
+        })?;
 
     // Look up vehicle profile; fall back to high-clearance if unknown.
-    let vp = profile.vehicle.get(&params.vehicle)
+    let vp = profile
+        .vehicle
+        .get(&params.vehicle)
         .or_else(|| profile.vehicle.get("high-clearance"));
 
     let initial_penalties = build_initial_penalties(g, params, vp);
@@ -216,7 +254,10 @@ pub(crate) fn run_route(
             tracing::warn!("no fuel stations in graph; rebuild with current OSM data");
             routes.iter().map(|_| vec![]).collect()
         } else {
-            routes.iter().map(|r| plan_fuel_stops(r, g, range_km, params.fuel_buffer)).collect()
+            routes
+                .iter()
+                .map(|r| plan_fuel_stops(r, g, range_km, params.fuel_buffer))
+                .collect()
         }
     } else {
         routes.iter().map(|_| vec![]).collect()
@@ -236,9 +277,18 @@ fn cmd_inspect(graph_path: &Path) -> anyhow::Result<()> {
     println!("Graph cache: {:?}", graph_path);
     println!("  nodes              : {}", g.node_count);
     println!("  edges              : {}", g.edge_count);
-    println!("  profile fingerprint: {}", fingerprint.iter().map(|b| format!("{:02x}", b)).collect::<String>());
+    println!(
+        "  profile fingerprint: {}",
+        fingerprint
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>()
+    );
     match timestamp {
-        Some(ts) => println!("  PBF timestamp      : {}", ts.format("%Y-%m-%d %H:%M:%S UTC")),
+        Some(ts) => println!(
+            "  PBF timestamp      : {}",
+            ts.format("%Y-%m-%d %H:%M:%S UTC")
+        ),
         None => println!("  PBF timestamp      : (none)"),
     }
 
@@ -309,12 +359,25 @@ fn pbf_bbox(nodes: &osm::loader::NodeMap) -> BBox {
     let mut min_lon = f64::INFINITY;
     let mut max_lon = f64::NEG_INFINITY;
     for &(lat, lon) in nodes.values() {
-        if lat < min_lat { min_lat = lat; }
-        if lat > max_lat { max_lat = lat; }
-        if lon < min_lon { min_lon = lon; }
-        if lon > max_lon { max_lon = lon; }
+        if lat < min_lat {
+            min_lat = lat;
+        }
+        if lat > max_lat {
+            max_lat = lat;
+        }
+        if lon < min_lon {
+            min_lon = lon;
+        }
+        if lon > max_lon {
+            max_lon = lon;
+        }
     }
-    BBox { min_lon, min_lat, max_lon, max_lat }
+    BBox {
+        min_lon,
+        min_lat,
+        max_lon,
+        max_lat,
+    }
 }
 
 /// Parse "minlon,minlat,maxlon,maxlat" into a `BBox`.
@@ -331,7 +394,8 @@ fn build_initial_penalties(
     params: &RouteParams,
     vp: Option<&profile::VehicleProfile>,
 ) -> std::collections::HashMap<EdgeId, f32> {
-    let mut initial_penalties: std::collections::HashMap<EdgeId, f32> = std::collections::HashMap::new();
+    let mut initial_penalties: std::collections::HashMap<EdgeId, f32> =
+        std::collections::HashMap::new();
     for (eid, edge) in g.edges.iter().enumerate() {
         let scenic = scenic_multiplier(edge, params);
         if scenic < 1.0 {
@@ -344,6 +408,10 @@ fn build_initial_penalties(
         if params.avoid_fords && edge.flags.contains(EdgeFlags::FORD) {
             let p = initial_penalties.entry(eid as EdgeId).or_insert(1.0);
             *p = p.max(20.0);
+        }
+        if params.vehicle != "dirtbike" && edge.flags.contains(EdgeFlags::TRAIL) {
+            let p = initial_penalties.entry(eid as EdgeId).or_insert(1.0);
+            *p = p.max(BLOCKED_COST);
         }
         if let Some(vp) = vp {
             if edge.flags.contains(EdgeFlags::FOURWD_ONLY) {
@@ -425,7 +493,10 @@ mod tests {
     #[test]
     fn scenic_penalty_does_not_override_harder_penalties() {
         let graph = Graph {
-            nodes: vec![NodeData { lat_e7: 0, lon_e7: 0 }],
+            nodes: vec![NodeData {
+                lat_e7: 0,
+                lon_e7: 0,
+            }],
             offsets: vec![0, 0],
             neighbors: vec![],
             edges: vec![EdgeData {
@@ -449,18 +520,54 @@ mod tests {
     fn scenic_preference_can_flip_route_choice() {
         let graph = Graph {
             nodes: vec![
-                NodeData { lat_e7: 0, lon_e7: 0 },
-                NodeData { lat_e7: 0, lon_e7: 1 },
-                NodeData { lat_e7: 0, lon_e7: 2 },
-                NodeData { lat_e7: 0, lon_e7: 3 },
+                NodeData {
+                    lat_e7: 0,
+                    lon_e7: 0,
+                },
+                NodeData {
+                    lat_e7: 0,
+                    lon_e7: 1,
+                },
+                NodeData {
+                    lat_e7: 0,
+                    lon_e7: 2,
+                },
+                NodeData {
+                    lat_e7: 0,
+                    lon_e7: 3,
+                },
             ],
             offsets: vec![0, 2, 3, 4, 4],
             neighbors: vec![(1, 0), (2, 2), (3, 1), (3, 3)],
             edges: vec![
-                EdgeData { cost: 2.0, length_m: 100.0, flags: EdgeFlags::default(), scenic_score: 255, polyline: vec![] },
-                EdgeData { cost: 2.0, length_m: 100.0, flags: EdgeFlags::default(), scenic_score: 255, polyline: vec![] },
-                EdgeData { cost: 1.7, length_m: 100.0, flags: EdgeFlags::default(), scenic_score: 0, polyline: vec![] },
-                EdgeData { cost: 1.7, length_m: 100.0, flags: EdgeFlags::default(), scenic_score: 0, polyline: vec![] },
+                EdgeData {
+                    cost: 2.0,
+                    length_m: 100.0,
+                    flags: EdgeFlags::default(),
+                    scenic_score: 255,
+                    polyline: vec![],
+                },
+                EdgeData {
+                    cost: 2.0,
+                    length_m: 100.0,
+                    flags: EdgeFlags::default(),
+                    scenic_score: 255,
+                    polyline: vec![],
+                },
+                EdgeData {
+                    cost: 1.7,
+                    length_m: 100.0,
+                    flags: EdgeFlags::default(),
+                    scenic_score: 0,
+                    polyline: vec![],
+                },
+                EdgeData {
+                    cost: 1.7,
+                    length_m: 100.0,
+                    flags: EdgeFlags::default(),
+                    scenic_score: 0,
+                    polyline: vec![],
+                },
             ],
             node_count: 4,
             edge_count: 4,
@@ -476,5 +583,56 @@ mod tests {
         let scenic = dijkstra(&graph, 0, 3, &penalties).expect("scenic route");
         assert_eq!(scenic.edges, vec![0, 1]);
     }
-}
 
+    #[test]
+    fn non_dirtbike_vehicle_blocks_trail_edges() {
+        let graph = Graph {
+            nodes: vec![NodeData {
+                lat_e7: 0,
+                lon_e7: 0,
+            }],
+            offsets: vec![0, 0],
+            neighbors: vec![],
+            edges: vec![EdgeData {
+                cost: 1.0,
+                length_m: 100.0,
+                flags: EdgeFlags::TRAIL,
+                scenic_score: 0,
+                polyline: vec![],
+            }],
+            node_count: 1,
+            edge_count: 1,
+            fuel_stations: vec![],
+        };
+
+        let penalties = build_initial_penalties(&graph, &params(), None);
+        assert_eq!(penalties.get(&0), Some(&BLOCKED_COST));
+    }
+
+    #[test]
+    fn dirtbike_vehicle_keeps_trail_edges_available() {
+        let graph = Graph {
+            nodes: vec![NodeData {
+                lat_e7: 0,
+                lon_e7: 0,
+            }],
+            offsets: vec![0, 0],
+            neighbors: vec![],
+            edges: vec![EdgeData {
+                cost: 1.0,
+                length_m: 100.0,
+                flags: EdgeFlags::TRAIL,
+                scenic_score: 0,
+                polyline: vec![],
+            }],
+            node_count: 1,
+            edge_count: 1,
+            fuel_stations: vec![],
+        };
+
+        let mut route_params = params();
+        route_params.vehicle = "dirtbike".to_string();
+        let penalties = build_initial_penalties(&graph, &route_params, None);
+        assert!(penalties.get(&0).is_none());
+    }
+}

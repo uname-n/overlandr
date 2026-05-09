@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use rstar::{AABB, PointDistance, RTree, RTreeObject};
+use rstar::{PointDistance, RTree, RTreeObject, AABB};
 
 use crate::geom::haversine_m;
 use crate::osm::loader::{NodeMap, Way};
@@ -25,10 +25,7 @@ pub struct BBox {
 
 impl BBox {
     fn contains(&self, lat: f64, lon: f64) -> bool {
-        lat >= self.min_lat
-            && lat <= self.max_lat
-            && lon >= self.min_lon
-            && lon <= self.max_lon
+        lat >= self.min_lat && lat <= self.max_lat && lon >= self.min_lon && lon <= self.max_lon
     }
 }
 
@@ -43,7 +40,10 @@ pub struct BuildOpts {
 
 impl Default for BuildOpts {
     fn default() -> Self {
-        Self { keep_private: false, bbox: None }
+        Self {
+            keep_private: false,
+            bbox: None,
+        }
     }
 }
 
@@ -156,7 +156,11 @@ pub fn build_graph(
         let surf = profile.surface_factor(surface);
         let tt = profile.tracktype_factor(tracktype);
         let sm = profile.smoothness_factor(smoothness);
-        let ford_factor = if flags.contains(EdgeFlags::FORD) { profile.routing.ford_penalty } else { 1.0 };
+        let ford_factor = if flags.contains(EdgeFlags::FORD) {
+            profile.routing.ford_penalty
+        } else {
+            1.0
+        };
 
         for pair in way.nodes.windows(2) {
             let osm_a = pair[0];
@@ -177,7 +181,8 @@ pub fn build_graph(
 
             let length_m = haversine_m(lat_a, lon_a, lat_b, lon_b) as f32;
             let cost = length_m * base * surf * tt * sm * ford_factor;
-            let scenic_score = score_edge_scenery(lat_a, lon_a, lat_b, lon_b, scenic_index.as_ref());
+            let scenic_score =
+                score_edge_scenery(lat_a, lon_a, lat_b, lon_b, scenic_index.as_ref());
 
             raw_edges.push(RawEdge {
                 src,
@@ -208,7 +213,10 @@ pub fn build_graph(
     }
 
     if dropped_segments > 0 {
-        tracing::debug!(dropped_segments, "way-segments skipped: OSM node not loaded");
+        tracing::debug!(
+            dropped_segments,
+            "way-segments skipped: OSM node not loaded"
+        );
     }
 
     // ------------------------------------------------------------------
@@ -263,7 +271,11 @@ fn build_scenic_index(features: &[ScenicFeature], bbox: Option<&BBox>) -> Option
                     return None;
                 }
             }
-            Some(ScenicRef { lat, lon, kind: feature.kind })
+            Some(ScenicRef {
+                lat,
+                lon,
+                kind: feature.kind,
+            })
         })
         .collect();
 
@@ -281,7 +293,9 @@ fn score_edge_scenery(
     lon_b: f64,
     scenic_index: Option<&RTree<ScenicRef>>,
 ) -> u8 {
-    let Some(index) = scenic_index else { return 0; };
+    let Some(index) = scenic_index else {
+        return 0;
+    };
 
     let mid_lat = (lat_a + lat_b) * 0.5;
     let mid_lon = (lon_a + lon_b) * 0.5;
@@ -294,7 +308,9 @@ fn score_edge_scenery(
     let mut score = 0.0f32;
     for feature in index.locate_in_envelope_intersecting(&envelope) {
         let dist_m = haversine_m(mid_lat, mid_lon, feature.lat, feature.lon) as f32;
-        let Some(max_dist_m) = scenic_radius_m(feature.kind) else { continue; };
+        let Some(max_dist_m) = scenic_radius_m(feature.kind) else {
+            continue;
+        };
         if dist_m > max_dist_m {
             continue;
         }
@@ -340,7 +356,10 @@ fn scenic_weight(kind: ScenicKind) -> f32 {
     }
 }
 
-fn compute_flags(tags: &HashMap<String, String>, routing: &crate::profile::RoutingConfig) -> EdgeFlags {
+fn compute_flags(
+    tags: &HashMap<String, String>,
+    routing: &crate::profile::RoutingConfig,
+) -> EdgeFlags {
     let mut flags = EdgeFlags::default();
 
     if let Some(surface) = tags.get("surface") {
@@ -359,6 +378,11 @@ fn compute_flags(tags: &HashMap<String, String>, routing: &crate::profile::Routi
     }
     if tags.get("access").map_or(false, |v| v == "private") {
         flags |= EdgeFlags::PRIVATE;
+    }
+    if tags.get("highway").map_or(false, |v| {
+        matches!(v.as_str(), "path" | "footway" | "bridleway" | "cycleway")
+    }) {
+        flags |= EdgeFlags::TRAIL;
     }
 
     // Smoothness threshold flags for vehicle-profile enforcement at routing time.
@@ -393,7 +417,11 @@ mod tests {
         let mut tags = HashMap::new();
         tags.insert("highway".to_string(), "track".to_string());
 
-        let ways = vec![Way { id: 1, nodes: vec![100, 101, 102], tags }];
+        let ways = vec![Way {
+            id: 1,
+            nodes: vec![100, 101, 102],
+            tags,
+        }];
         (ways, nodes)
     }
 
@@ -401,7 +429,10 @@ mod tests {
     fn three_node_way_produces_four_edges() {
         let (ways, nodes) = three_node_setup();
         let profile = load_profile(None).expect("embedded profile must parse");
-        let opts = BuildOpts { keep_private: false, bbox: None };
+        let opts = BuildOpts {
+            keep_private: false,
+            bbox: None,
+        };
         let graph = build_graph(&ways, &nodes, &[], &profile, &opts);
         assert_eq!(graph.edge_count, 4);
         assert_eq!(graph.node_count, 3);
@@ -411,7 +442,10 @@ mod tests {
     fn track_cost_less_than_length() {
         let (ways, nodes) = three_node_setup();
         let profile = load_profile(None).expect("embedded profile must parse");
-        let opts = BuildOpts { keep_private: false, bbox: None };
+        let opts = BuildOpts {
+            keep_private: false,
+            bbox: None,
+        };
         let graph = build_graph(&ways, &nodes, &[], &profile, &opts);
         for edge in &graph.edges {
             assert!(edge.cost < edge.length_m);
@@ -428,9 +462,16 @@ mod tests {
         tags.insert("highway".to_string(), "track".to_string());
         tags.insert("oneway".to_string(), "yes".to_string());
 
-        let ways = vec![Way { id: 10, nodes: vec![1, 2], tags }];
+        let ways = vec![Way {
+            id: 10,
+            nodes: vec![1, 2],
+            tags,
+        }];
         let profile = load_profile(None).expect("embedded profile must parse");
-        let opts = BuildOpts { keep_private: false, bbox: None };
+        let opts = BuildOpts {
+            keep_private: false,
+            bbox: None,
+        };
         let graph = build_graph(&ways, &nodes, &[], &profile, &opts);
         assert_eq!(graph.edge_count, 1);
     }
@@ -445,14 +486,44 @@ mod tests {
         tags.insert("highway".to_string(), "road".to_string());
         tags.insert("surface".to_string(), "asphalt".to_string());
 
-        let ways = vec![Way { id: 20, nodes: vec![1, 2], tags }];
+        let ways = vec![Way {
+            id: 20,
+            nodes: vec![1, 2],
+            tags,
+        }];
         let profile = load_profile(None).expect("embedded profile must parse");
-        let opts = BuildOpts { keep_private: false, bbox: None };
+        let opts = BuildOpts {
+            keep_private: false,
+            bbox: None,
+        };
         let graph = build_graph(&ways, &nodes, &[], &profile, &opts);
 
         for edge in &graph.edges {
             assert!(edge.flags.contains(EdgeFlags::PAVED));
         }
+    }
+
+    #[test]
+    fn path_like_highways_are_marked_as_trails_but_tracks_are_not() {
+        let routing = load_profile(None)
+            .expect("embedded profile must parse")
+            .routing;
+
+        for highway in ["path", "footway", "bridleway", "cycleway"] {
+            let tags = HashMap::from([("highway".to_string(), highway.to_string())]);
+            let flags = compute_flags(&tags, &routing);
+            assert!(
+                flags.contains(EdgeFlags::TRAIL),
+                "{highway} should set TRAIL flag"
+            );
+        }
+
+        let track_tags = HashMap::from([("highway".to_string(), "track".to_string())]);
+        let track_flags = compute_flags(&track_tags, &routing);
+        assert!(
+            !track_flags.contains(EdgeFlags::TRAIL),
+            "track should remain road-routable"
+        );
     }
 
     #[test]
@@ -464,7 +535,11 @@ mod tests {
         let mut tags = HashMap::new();
         tags.insert("highway".to_string(), "track".to_string());
 
-        let ways = vec![Way { id: 30, nodes: vec![1, 2], tags }];
+        let ways = vec![Way {
+            id: 30,
+            nodes: vec![1, 2],
+            tags,
+        }];
         let profile = load_profile(None).expect("embedded profile must parse");
         let opts = BuildOpts {
             keep_private: false,
@@ -484,7 +559,10 @@ mod tests {
     fn scenic_features_raise_edge_score() {
         let (ways, nodes) = three_node_setup();
         let profile = load_profile(None).expect("embedded profile must parse");
-        let opts = BuildOpts { keep_private: false, bbox: None };
+        let opts = BuildOpts {
+            keep_private: false,
+            bbox: None,
+        };
         let scenic = vec![ScenicFeature {
             lat_e7: 470045000,
             lon_e7: -1160000000,
@@ -527,7 +605,10 @@ mod tests {
         ];
         let index = build_scenic_index(&scenic, None).expect("index");
         let score = score_edge_scenery(47.0, -116.0, 47.009, -116.0, Some(&index));
-        assert!(score > 0, "forest/protected features should influence nearby edges");
+        assert!(
+            score > 0,
+            "forest/protected features should influence nearby edges"
+        );
     }
 
     #[test]
@@ -537,24 +618,36 @@ mod tests {
             -116.0,
             47.009,
             -116.0,
-            Some(&build_scenic_index(&[ScenicFeature {
-                lat_e7: 470500000,
-                lon_e7: -1160000000,
-                kind: ScenicKind::Glacier,
-                osm_id: 1,
-            }], None).expect("glacier index")),
+            Some(
+                &build_scenic_index(
+                    &[ScenicFeature {
+                        lat_e7: 470500000,
+                        lon_e7: -1160000000,
+                        kind: ScenicKind::Glacier,
+                        osm_id: 1,
+                    }],
+                    None,
+                )
+                .expect("glacier index"),
+            ),
         );
         let stream = score_edge_scenery(
             47.0,
             -116.0,
             47.009,
             -116.0,
-            Some(&build_scenic_index(&[ScenicFeature {
-                lat_e7: 470500000,
-                lon_e7: -1160000000,
-                kind: ScenicKind::Stream,
-                osm_id: 2,
-            }], None).expect("stream index")),
+            Some(
+                &build_scenic_index(
+                    &[ScenicFeature {
+                        lat_e7: 470500000,
+                        lon_e7: -1160000000,
+                        kind: ScenicKind::Stream,
+                        osm_id: 2,
+                    }],
+                    None,
+                )
+                .expect("stream index"),
+            ),
         );
         assert!(glacier > stream);
     }
