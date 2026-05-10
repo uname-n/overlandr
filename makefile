@@ -2,13 +2,13 @@ CARGO    = cargo run --release --
 USFS     = shape/national_forest_system_roads/nfsr.shp
 REGISTRY = ghcr.io/uname-n/overlandr
 PACKAGE  = $(notdir $(REGISTRY))
-STATES   = oregon idaho montana
+STATES   = oregon idaho montana arizona
 SOURCE   = https://github.com/uname-n/overlandr
 VERSION  = $(shell awk -F '"' '/^version = / { print $$2; exit }' Cargo.toml)
 
-.PHONY: all oregon idaho montana build install clean publish prune $(addprefix publish-,$(STATES))
+.PHONY: all oregon idaho montana arizona build install clean publish prune $(addprefix publish-,$(STATES))
 
-all: build oregon idaho montana
+all: build oregon idaho montana arizona
 
 build:
 	cargo build --release
@@ -16,9 +16,10 @@ build:
 install: build
 	cargo install --path .
 
-oregon: bin/oregon.bin
-idaho:  bin/idaho.bin
+oregon:  bin/oregon.bin
+idaho:   bin/idaho.bin
 montana: bin/montana.bin
+arizona: bin/arizona.bin
 
 bin/:
 	mkdir -p bin
@@ -31,6 +32,9 @@ bin/idaho.bin: bin/ osm/idaho-*.osm.pbf $(USFS)
 
 bin/montana.bin: bin/ osm/montana-*.osm.pbf $(USFS)
 	$(CARGO) build osm/montana-*.osm.pbf --usfs $(USFS) --out $@
+
+bin/arizona.bin: bin/ osm/arizona-*.osm.pbf $(USFS)
+	$(CARGO) build osm/arizona-*.osm.pbf --usfs $(USFS) --out $@
 
 publish: $(addprefix publish-,$(STATES)) prune
 
@@ -62,4 +66,4 @@ prune:
 		| while read -r id; do gh api -X DELETE "/user/packages/container/$(PACKAGE)/versions/$$id" > /dev/null; done
 
 clean:
-	rm -f bin/oregon.bin bin/idaho.bin bin/montana.bin
+	rm -f bin/oregon.bin bin/idaho.bin bin/montana.bin bin/arizona.bin

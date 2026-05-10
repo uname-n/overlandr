@@ -15,7 +15,7 @@ docker pull ghcr.io/uname-n/overlandr:oregon
 docker run -p 3000:3000 ghcr.io/uname-n/overlandr:oregon
 ```
 
-Available tags: `oregon`, `idaho`, `montana`. Each image serves on port 3000.
+Available tags: `oregon`, `idaho`, `montana`, `arizona`. Each image serves on port 3000.
 
 Plan routes via HTTP:
 
