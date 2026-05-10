@@ -60,6 +60,8 @@ Lower multipliers bias Dijkstra toward those edges. These base/tag multipliers a
 
 Default `[base]` highway factors (lower = preferred):
 
+Non-dirtbike vehicles also hard-block edges flagged as `TRAIL`; the `dirtbike` profile keeps those classes available.
+
 | Highway class | Factor | Notes |
 |---|---|---|
 | `track` | 0.6 | Forest service roads, the primary target |
@@ -88,6 +90,7 @@ Each edge carries a `u8` bitfield:
 | `PRIVATE` | 0x10 | private access |
 | `SMOOTHNESS_ROUGH` | 0x20 | rough smoothness tag |
 | `SMOOTHNESS_VERY_ROUGH` | 0x40 | very rough smoothness tag |
+| `TRAIL` | 0x80 | non-road trail class (`path`, `footway`, `bridleway`, `cycleway`) |
 
 ### CSR Graph Construction
 
@@ -98,7 +101,7 @@ Each edge carries a `u8` bitfield:
 
 ### Graph Contraction (Degree-2 Elimination)
 
-Chains of intermediate nodes with exactly 2 neighbors are collapsed into single edges. Intermediate coordinates are preserved in a per-edge polyline field so output geometry is lossless. This reduces node count by 60–80% on typical OSM forest-road extracts, speeding up Dijkstra proportionally.
+Chains of intermediate nodes with exactly 2 neighbors are collapsed into single edges. Intermediate coordinates are preserved in a per-edge polyline field so output geometry is lossless. On real extracts this can substantially reduce node count and improve Dijkstra throughput.
 
 ### Scenic Edge Scoring
 
@@ -190,7 +193,7 @@ Note that the GPX track `<desc>` exposes only the weighted unpaved component (`u
 When `tank_range_km` is set:
 
 1. Precompute cumulative distance along route nodes (O(n), Haversine)
-2. Trigger a fuel search when `remaining_range < tank_range × (1 − fuel_buffer)`
+2. Trigger a fuel search when distance since the last refuel reaches `tank_range × (1 − fuel_buffer)` (equivalently: remaining range falls to `tank_range × fuel_buffer`)
 3. Query the R-Tree for the nearest fuel station within 2 km
 4. Prefer stations found earlier along the route via lookback search
 5. Advance past the placed stop to avoid re-triggering

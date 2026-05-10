@@ -3,7 +3,7 @@
 ## Features
 
 - Builds a routing graph from any `.osm.pbf` extract (state or regional)
-- Sub-second k-alternatives via bidirectional Dijkstra + iterative edge penalty
+- K-alternatives via bidirectional Dijkstra + iterative edge penalty
 - Tag-aware costing: tracktype, surface, smoothness, ford, 4WD-only
 - Build-time scenic scoring from viewpoints, peaks, saddles, water, rivers, streams, forests, protected areas, nature reserves, glaciers, and cliffs
 - Four built-in vehicle profiles: `stock-suv`, `high-clearance`, `4x4`, `dirtbike`
@@ -152,7 +152,7 @@ Successful responses return a GPX file (`application/gpx+xml`). Validation and r
 | `vehicle` | string | `"high-clearance"` | Vehicle profile — see table below |
 | `alternatives` | int ≥ 1 | `1` | Number of topologically distinct routes to return |
 | `avoid_paved` | bool | `true` | Penalise paved edges |
-| `avoid_fords` | bool | `true` | Disallow ford crossings |
+| `avoid_fords` | bool | `true` | Penalise ford crossings strongly |
 | `prefer_scenic` | bool | `true` | Soft-bias toward edges near scenic OSM features such as viewpoints, peaks, water, rivers, forests, protected areas, glaciers, and cliffs |
 | `scenic_weight` | float 0–1 | `1.0` | Strength of that scenic bias when `prefer_scenic=true` |
 | `diversity` | float 0–1 | `0.35` | Min Jaccard distance between alternatives |
@@ -174,7 +174,7 @@ Pass the profile name as `"vehicle"` in the `/route` request body.
 | `stock-suv` | 9999 (blocked) | bad | Paved + easy gravel only |
 | `high-clearance` | 4.0 | very_bad | **Default** |
 | `4x4` | 1.0 | horrible | No penalty for technical roads |
-| `dirtbike` | 1.0 | very_horrible | Prefers narrow singletrack |
+| `dirtbike` | 1.0 | very_horrible | Keeps trail classes (`path`, `footway`, `bridleway`, `cycleway`) available |
 
 The 4WD penalty multiplies the cost of `4wd_only=yes` edges. Min smoothness hard-blocks edges rougher than the vehicle can handle.
 
@@ -245,7 +245,7 @@ Load the file in CalTopo, Gaia GPS, OnX Offroad, or Garmin BaseCamp to compare r
 
 ## Performance
 
-Tested on an M-series laptop with a ~250 MB Idaho `.osm.pbf`:
+Indicative development-time measurements on an M-series laptop with a ~250 MB Idaho `.osm.pbf` (not enforced by tests; expect variance by extract, profile, and hardware):
 
 | Operation | Target |
 |---|---|

@@ -2,13 +2,13 @@
 
 Discover diverse overlanding routes between two GPS coordinates using OpenStreetMap data.
 
-Mainstream routers optimize for one fastest path. Overlandr does the opposite — it generates **multiple topologically distinct alternatives** ranked by offroad appeal: forest service roads, 4×4 tracks, gravel connectors, abandoned alignments, and scenic corridors influenced by nearby viewpoints, water, forests, and protected lands. Output is a multi-track GPX ready for CalTopo, Gaia, OnX, or Garmin BaseCamp.
+Mainstream routers optimize for one fastest path. Overlandr does the opposite — it generates **multiple topologically distinct alternatives** ranked by offroad appeal: forest service roads, 4×4 tracks, gravel connectors, and scenic corridors influenced by nearby viewpoints, water, forests, and protected lands. Output is a multi-track GPX ready for CalTopo, Gaia, OnX, or Garmin BaseCamp.
 
 ---
 
 ## Docker Quickstart
 
-Pre-built images are published to GHCR with the graph baked in — no volume mount needed:
+If you are using the published GHCR images, the graph is baked in — no volume mount needed:
 
 ```bash
 docker pull ghcr.io/uname-n/overlandr:oregon
