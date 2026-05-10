@@ -42,6 +42,10 @@
       {
         "pattern": "(^|[;&|\\s])make\\s+prune([\\s;&|]|$)",
         "regex": true
+      },
+      {
+        "pattern": "(^|[;&|]\\s*|\n)\\s*git\\s+push([\\s;&|]|$)",
+        "regex": true
       }
     ]
   },
