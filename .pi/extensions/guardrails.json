@@ -1,7 +1,8 @@
 {
   "pathAccess": {
     "allowedPaths": [
-      "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/"
+      "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/",
+      "/opt/homebrew/lib/node_modules/@aliou/pi-guardrails/"
     ]
   },
   "policies": {
@@ -10,13 +11,37 @@
         "id": "overlandr-generated-and-data-dirs",
         "description": "Block access to generated artifacts and large data directories",
         "patterns": [
-          { "pattern": "bin/**" },
-          { "pattern": "osm/**" },
-          { "pattern": "shape/**" },
-          { "pattern": "target/**" }
+          {
+            "pattern": "bin/**"
+          },
+          {
+            "pattern": "osm/**"
+          },
+          {
+            "pattern": "shape/**"
+          },
+          {
+            "pattern": "target/**"
+          }
         ],
         "protection": "noAccess",
         "onlyIfExists": true
+      }
+    ]
+  },
+  "permissionGate": {
+    "autoDenyPatterns": [
+      {
+        "pattern": "(^|[;&|\\s])make\\s+publish([\\s;&|]|$)",
+        "regex": true
+      },
+      {
+        "pattern": "(^|[;&|\\s])make\\s+publish-[^\\s;&|]+([\\s;&|]|$)",
+        "regex": true
+      },
+      {
+        "pattern": "(^|[;&|\\s])make\\s+prune([\\s;&|]|$)",
+        "regex": true
       }
     ]
   },
